@@ -1,186 +1,175 @@
 #!/usr/bin/python3
-"""
-Unittest for Base Class
-# run with python3 -m unittest discover tests
-# run with python3 -m unittest tests/test_models/test_base.py
-"""
-
-import unittest
-import pep8
+# base.py
+"""Defines a base model class."""
 import json
-import os
-from models import base
-from models import rectangle
-Base = base.Base
-Rectangle = rectangle.Rectangle
+import csv
+import turtle
 
 
-class TestPep8(unittest.TestCase):
-    """Pep8 models/base.py & tests/test_models/test_base.py"""
-    def test_pep8(self):
-        """Pep8"""
-        style = pep8.StyleGuide(quiet=False)
-        errors = 0
-        files = ["models/base.py", "tests/test_models/test_base.py"]
-        errors += style.check_files(files).total_errors
-        self.assertEqual(errors, 0, 'Need to fix Pep8')
+class Base:
+    """Represent the base model.
+    Represents the "base" for all other classes in project 0x0C*.
+    Attributes:
+        __nb_objects (int): The number of instantiated Bases.
+    """
 
+    __nb_objects = 0
 
-class TestBase(unittest.TestCase):
-    """Tests for models/base.py"""
+    def __init__(self, id=None):
+        """Initialize a new Base.
+        Args:
+            id (int): The identity of the new Base.
+        """
+        if id is not None:
+            self.id = id
+        else:
+            Base.__nb_objects += 1
+            self.id = Base.__nb_objects
 
-    def setUp(self):
-        pass
+    @staticmethod
+    def to_json_string(list_dictionaries):
+        """Return the JSON serialization of a list of dicts.
+        Args:
+            list_dictionaries (list): A list of dictionaries.
+        """
+        if list_dictionaries is None or list_dictionaries == []:
+            return "[]"
+        return json.dumps(list_dictionaries)
 
-    def tearDown(self):
+    @classmethod
+    def save_to_file(cls, list_objs):
+        """Write the JSON serialization of a list of objects to a file.
+        Args:
+            list_objs (list): A list of inherited Base instances.
+        """
+        filename = cls.__name__ + ".json"
+        with open(filename, "w") as jsonfile:
+            if list_objs is None:
+                jsonfile.write("[]")
+            else:
+                list_dicts = [o.to_dictionary() for o in list_objs]
+                jsonfile.write(Base.to_json_string(list_dicts))
+
+    @staticmethod
+    def from_json_string(json_string):
+        """Return the deserialization of a JSON string.
+        Args:
+            json_string (str): A JSON str representation of a list of dicts.
+        Returns:
+            If json_string is None or empty - an empty list.
+            Otherwise - the Python list represented by json_string.
+        """
+        if json_string is None or json_string == "[]":
+            return []
+        return json.loads(json_string)
+
+    @classmethod
+    def create(cls, **dictionary):
+        """Return a class instantied from a dictionary of attributes.
+        Args:
+            **dictionary (dict): Key/value pairs of attributes to initialize.
+        """
+        if dictionary and dictionary != {}:
+            if cls.__name__ == "Rectangle":
+                new = cls(1, 1)
+            else:
+                new = cls(1)
+            new.update(**dictionary)
+            return new
+
+    @classmethod
+    def load_from_file(cls):
+        """Return a list of classes instantiated from a file of JSON strings.
+        Reads from `<cls.__name__>.json`.
+        Returns:
+            If the file does not exist - an empty list.
+            Otherwise - a list of instantiated classes.
+        """
+        filename = str(cls.__name__) + ".json"
         try:
-            os.remove("Rectangle.json")
-        except:
-            pass
+            with open(filename, "r") as jsonfile:
+                list_dicts = Base.from_json_string(jsonfile.read())
+                return [cls.create(**d) for d in list_dicts]
+        except IOError:
+            return []
 
-    """Test attributes"""
-    def test_id_given(self):
-        """Test ids match when given"""
-        self.assertTrue(Base(999), self.id == 999)
-        self.assertTrue(Base(0), self.id == 0)
-        self.assertTrue(Base(1), self.id == 1)
-        self.assertTrue(Base(-80), self.id == -80)
+    @classmethod
+    def save_to_file_csv(cls, list_objs):
+        """Write the CSV serialization of a list of objects to a file.
+        Args:
+            list_objs (list): A list of inherited Base instances.
+        """
+        filename = cls.__name__ + ".csv"
+        with open(filename, "w", newline="") as csvfile:
+            if list_objs is None or list_objs == []:
+                csvfile.write("[]")
+            else:
+                if cls.__name__ == "Rectangle":
+                    fieldnames = ["id", "width", "height", "x", "y"]
+                else:
+                    fieldnames = ["id", "size", "x", "y"]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                for obj in list_objs:
+                    writer.writerow(obj.to_dictionary())
 
-    def test_id_not_given(self):
-        """Test ids match incremented nb_objects when not given"""
-        self.assertTrue(Base(), self.id == 1)
-        self.assertTrue(Base(), self.id == 2)
+    @classmethod
+    def load_from_file_csv(cls):
+        """Return a list of classes instantiated from a CSV file.
+        Reads from `<cls.__name__>.csv`.
+        Returns:
+            If the file does not exist - an empty list.
+            Otherwise - a list of instantiated classes.
+        """
+        filename = cls.__name__ + ".csv"
+        try:
+            with open(filename, "r", newline="") as csvfile:
+                if cls.__name__ == "Rectangle":
+                    fieldnames = ["id", "width", "height", "x", "y"]
+                else:
+                    fieldnames = ["id", "size", "x", "y"]
+                list_dicts = csv.DictReader(csvfile, fieldnames=fieldnames)
+                list_dicts = [dict([k, int(v)] for k, v in d.items())
+                              for d in list_dicts]
+                return [cls.create(**d) for d in list_dicts]
+        except IOError:
+            return []
 
-    def test_private_attr_access(self):
-        """Test private attr are not accessible"""
-        with self.assertRaises(AttributeError):
-            print(Base.__nb_objects)
-            print(Base.nb_objects)
+    @staticmethod
+    def draw(list_rectangles, list_squares):
+        """Draw Rectangles and Squares using the turtle module.
+        Args:
+            list_rectangles (list): A list of Rectangle objects to draw.
+            list_squares (list): A list of Square objects to draw.
+        """
+        turt = turtle.Turtle()
+        turt.screen.bgcolor("#b7312c")
+        turt.pensize(3)
+        turt.shape("turtle")
 
-    """Test args given"""
-    def test_invalid_args(self):
-        """Test too many args given throws error"""
-        with self.assertRaises(TypeError):
-            Base(50, 50)
+        turt.color("#ffffff")
+        for rect in list_rectangles:
+            turt.showturtle()
+            turt.up()
+            turt.goto(rect.x, rect.y)
+            turt.down()
+            for i in range(2):
+                turt.forward(rect.width)
+                turt.left(90)
+                turt.forward(rect.height)
+                turt.left(90)
+            turt.hideturtle()
 
-    """Test class"""
-    def test_class(self):
-        """Test class created is indeed Base"""
-        self.assertTrue(Base(100), self.__class__ == Base)
+        turt.color("#b5e3d8")
+        for sq in list_squares:
+            turt.showturtle()
+            turt.up()
+            turt.goto(sq.x, sq.y)
+            turt.down()
+            for i in range(2):
+                turt.forward(sq.width)
+                turt.left(90)
+                turt.forward(sq.height)
+                turt.left(90)
+            turt.hideturtle()
 
-    """Test Python obj to JSON"""
-    def test_to_json_string(self):
-        """Test dict given translates into JSON string"""
-        d0 = {"id": 1, "width": 2, "height": 3, "x": 4, "y": 5}
-        d1 = {"id": 6, "width": 7, "height": 8, "x": 9, "y": 10}
-        strd01 = Base.to_json_string([d0, d1])
-        self.assertTrue(type(d0) == dict)
-        self.assertTrue(type(strd01) == str)
-        self.assertTrue(strd01,
-                        [{"id": 1, "width": 2, "height": 3, "x": 4, "y": 5},
-                         {"id": 6, "width": 7, "height": 8, "x": 9, "y": 10}])
-
-    def test_none_to_json_string(self):
-        """Test no dict given translates into JSON string of empty dict"""
-        d2 = None
-        strd2 = Base.to_json_string([d2])
-        self.assertTrue(type(strd2) == str)
-        self.assertTrue(strd2, "[]")
-
-    def test_empty_to_json_string(self):
-        """Test empty dict given translates into JSON string of empty dict"""
-        d3 = dict()
-        strd3 = Base.to_json_string([d3])
-        self.assertTrue(len(d3) == 0)
-        self.assertTrue(type(strd3) == str)
-        self.assertTrue(strd3, "[]")
-
-    """Test JSON to Python object"""
-    def test_from_json_string(self):
-        """Test JSON string translates into Python dict"""
-        s0 = '[{"id": 1, "width": 2, "height": 3, "x": 4, "y": 5},\
-               {"id": 6, "width": 7, "height": 8, "x": 9, "y": 10}]'
-        strs0 = Base.from_json_string(s0)
-        self.assertTrue(type(s0) == str)
-        self.assertTrue(type(strs0) == list)
-        self.assertTrue(type(strs0[0]) == dict)
-        self.assertTrue(strs0,
-                        [{"id": 1, "width": 2, "height": 3, "x": 4, "y": 5},
-                         {"id": 6, "width": 7, "height": 8, "x": 9, "y": 10}])
-        self.assertTrue(strs0[0],
-                        {"id": 1, "width": 2, "height": 3, "x": 4, "y": 5})
-
-    def test_from_none_json_string(self):
-        """Test no JSON string translates into empty Python dict"""
-        s2 = None
-        strs2 = Base.from_json_string(s2)
-        self.assertTrue(type(strs2) == list)
-        self.assertTrue(strs2 == [])
-
-    def test_from_empty_json_string(self):
-        """Test no JSON string translates into empty Python dict"""
-        s3 = ""
-        strs3 = Base.from_json_string(s3)
-        self.assertTrue(type(strs3) == list)
-        self.assertTrue(strs3 == [])
-
-    """Test creating instance from dictionary"""
-    def test_create(self):
-        """Test transferring attribute dictionary to another instance"""
-        r = Rectangle(3, 5, 1, 2, 99)
-        rdic = r.to_dictionary()
-        r2 = Rectangle.create(**rdic)
-        self.assertEqual(str(r), '[Rectangle] (99) 1/2 - 3/5')
-        self.assertEqual(str(r2), '[Rectangle] (99) 1/2 - 3/5')
-        self.assertIsNot(r, r2)
-
-    """Test saving JSON string repr of dict to class specific file"""
-    def test_save_to_file(self):
-        """Test save to file"""
-        r = Rectangle(10, 7, 2, 8, 99)
-        r2 = Rectangle(2, 4, 2, 2, 98)
-        Rectangle.save_to_file([r, r2])
-        with open("Rectangle.json", "r") as file:
-            self.assertEqual(
-                json.dumps([r.to_dictionary(), r2.to_dictionary()]),
-                file.read())
-
-    def test_save_none_to_file(self):
-        """Test save None to file"""
-        Rectangle.save_to_file(None)
-        with open("Rectangle.json", "r") as file:
-            self.assertEqual('[]', file.read())
-
-    def test_empty_none_to_file(self):
-        """Test save empty list to file"""
-        Rectangle.save_to_file([])
-        with open("Rectangle.json", "r") as file:
-            self.assertEqual('[]', file.read())
-
-    """Test loading list of instances from JSON string repr of dict in file"""
-    def test_load_from_file(self):
-        """Test load from file"""
-        r = Rectangle(10, 7, 2, 8, 99)
-        r2 = Rectangle(2, 4, 2, 2, 98)
-        Rectangle.save_to_file([r, r2])
-        recs = Rectangle.load_from_file()
-        self.assertEqual(len(recs), 2)
-        for k, v in enumerate(recs):
-            if k == 0:
-                self.assertEqual(str(v), '[Rectangle] (99) 2/8 - 10/7')
-            if k == 1:
-                self.assertEqual(str(v), '[Rectangle] (98) 2/2 - 2/4')
-
-    def test_load_from_none_file(self):
-        """Test load from None file"""
-        Rectangle.save_to_file(None)
-        recs = Rectangle.load_from_file()
-        self.assertEqual(type(recs), list)
-        self.assertEqual(len(recs), 0)
-
-    def test_load_from_empty_file(self):
-        """Test load from empty file"""
-        Rectangle.save_to_file([])
-        recs = Rectangle.load_from_file()
-        self.assertEqual(type(recs), list)
-        self.assertEqual(len(recs), 0)
+        turtle.exitonclick()
